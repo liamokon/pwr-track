@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Strength Tracker</title>
+
+<!-- PWA / iOS home-screen -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Strength" />
+<meta name="theme-color" content="#0a0a0a" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%230a0a0a'/%3E%3Crect x='34' y='82' width='112' height='16' rx='4' fill='%231d4ed8'/%3E%3Crect x='20' y='66' width='20' height='48' rx='4' fill='%23e5e5e5'/%3E%3Crect x='140' y='66' width='20' height='48' rx='4' fill='%23e5e5e5'/%3E%3Crect x='44' y='74' width="12" height='32' rx='3' fill='%2334d399'/%3E%3Crect x='124' y='74' width='12' height='32' rx='3' fill='%2334d399'/%3E%3C/svg%3E" />
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: #0a0a0a; }
+  body { font-family: 'DM Mono', ui-monospace, 'SF Mono', 'Courier New', monospace; color: #e5e5e5; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  #root { min-height: 100vh; padding: 20px 14px; max-width: 760px; margin: 0 auto; }
+  .app-title-row { margin-bottom: 18px; }
+  .app-kicker { font-size: 11px; color: #6b7280; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px; }
+  .app-title { font-size: 21px; font-weight: 500; color: #f5f5f5; }
+  .app-sub { font-size: 12px; color: #6b7280; margin-top: 3px; }
+
+  .nav { display: flex; gap: 6px; margin-bottom: 18px; }
+  .nav button { flex: 1; padding: 11px; border-radius: 7px; border: 0.5px solid #2a2a2a; background: #141414; color: #9ca3af; cursor: pointer; font-size: 13px; font-family: inherit; }
+  .nav button.active { background: #1d4ed8; border-color: #1d4ed8; color: #f5f5f5; }
+
+  .cards4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+  .stat { background: #141414; border: 0.5px solid #2a2a2a; border-radius: 8px; padding: 10px; }
+  .stat-label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .stat-val { font-size: 17px; font-weight: 500; color: #f5f5f5; }
+  .stat-val input { width: 100%; background: transparent; border: none; color: #60a5fa; font-size: 17px; font-weight: 500; font-family: inherit; border-bottom: 1px dashed #2a4a7a; padding: 0; }
+  .stat-val input:focus { outline: none; border-bottom-color: #60a5fa; }
+  .stat-sub { font-size: 9px; color: #4b5563; margin-top: 2px; }
+
+  .week-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 16px; }
+  .wtab { padding: 8px 13px; border-radius: 6px; border: 0.5px solid #2a2a2a; background: #141414; color: #9ca3af; cursor: pointer; font-size: 12px; font-family: inherit; position: relative; }
+  .wtab.active { background: #1d4ed8; border-color: #1d4ed8; color: #f5f5f5; }
+  .wtab.deload { color: #f59e0b; }
+  .wtab.peak { color: #34d399; }
+  .wtab.active.deload { background: #92400e; border-color: #92400e; color: #f5f5f5; }
+  .wtab.active.peak { background: #065f46; border-color: #065f46; color: #f5f5f5; }
+  .wtab .done-dot { position: absolute; top: 3px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: #34d399; }
+
+  .week-note { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; }
+  .badge.normal { background: #1d3461; color: #bfdbfe; }
+  .badge.deload { background: #78350f; color: #fde68a; }
+  .badge.peak { background: #134e4a; color: #99f6e4; }
+  .week-note span.txt { font-size: 12px; color: #9ca3af; }
+
+  .days { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-bottom: 20px; }
+  @media (max-width: 640px) { .days { grid-template-columns: 1fr; } .cards4 { grid-template-columns: repeat(2,1fr); } }
+  .day { background: #141414; border: 0.5px solid #2a2a2a; border-radius: 10px; padding: 13px; }
+  .day.complete { border-color: #1f4d3a; }
+  .day-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; border-bottom: 0.5px solid #2a2a2a; padding-bottom: 8px; }
+  .day-title { font-size: 12px; font-weight: 500; color: #9ca3af; }
+  .day-check { font-size: 16px; color: #34d399; }
+
+  .ex { margin-bottom: 9px; padding-bottom: 9px; border-bottom: 0.5px solid #1f1f1f; }
+  .ex:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .ex-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+  .ex-name { font-size: 13px; color: #e5e5e5; }
+  .ex-name.main { font-weight: 500; }
+  .tag { font-size: 9px; padding: 2px 6px; border-radius: 9px; flex-shrink: 0; margin-left: 6px; }
+  .tag.main { background: #1d4ed8; color: #eff6ff; }
+  .tag.var { background: #0f6e56; color: #e1f5ee; }
+  .tag.acc { background: #44403c; color: #d6d3d1; }
+  .ex-bot { display: flex; justify-content: space-between; align-items: center; }
+  .ex-scheme { font-size: 12px; color: #6b7280; }
+  .ex-target { font-size: 12px; color: #60a5fa; }
+  .ex-target .pct { color: #4b5563; margin-left: 4px; }
+
+  .log-main { margin-top: 8px; background: #0f0f0f; border: 0.5px solid #222; border-radius: 7px; padding: 9px; }
+  .log-row { display: flex; gap: 7px; align-items: flex-end; }
+  .log-field { flex: 1; }
+  .log-field label { display: block; font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+  .log-field input { width: 100%; background: #1a1a1a; border: 0.5px solid #2a2a2a; border-radius: 5px; padding: 8px; color: #e5e5e5; font-size: 16px; font-family: inherit; }
+  .log-field input:focus { outline: none; border-color: #1d4ed8; }
+  .log-btn { padding: 9px 12px; border-radius: 6px; border: none; background: #1d4ed8; color: #fff; font-size: 12px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+  .log-btn.done { background: #065f46; }
+  .logged-info { font-size: 11px; color: #34d399; margin-top: 6px; }
+  .logged-info .diff { color: #6b7280; }
+
+  .prog-wrap { margin-bottom: 20px; }
+  .prog-label { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+  .prog-track { height: 5px; background: #1f1f1f; border-radius: 3px; overflow: hidden; }
+  .prog-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.4s; }
+
+  .hist-lift { background: #141414; border: 0.5px solid #2a2a2a; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+  .hist-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 8px; }
+  .hist-name { font-size: 14px; font-weight: 500; color: #f5f5f5; }
+  .hist-stat { font-size: 11px; color: #6b7280; text-align: right; }
+  .hist-stat b { color: #34d399; font-weight: 500; }
+  .chart { display: flex; align-items: flex-end; gap: 4px; height: 90px; padding-top: 10px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; background: #1d4ed8; border-radius: 3px 3px 0 0; min-height: 2px; }
+  .bar-val { font-size: 9px; color: #9ca3af; }
+  .bar-wk { font-size: 8px; color: #4b5563; }
+  .empty { font-size: 12px; color: #6b7280; text-align: center; padding: 20px; line-height: 1.5; }
+
+  .reset-row { margin-top: 24px; text-align: center; }
+  .reset-btn { font-size: 11px; color: #6b7280; background: none; border: 0.5px solid #2a2a2a; border-radius: 6px; padding: 8px 14px; cursor: pointer; font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+const BASE_DEFAULT = { squat: 132, dead: 155, bench: 107, ohp: 77 };
+const REG = { squat: "120×4", dead: "150×2", bench: "100×3", ohp: "75×2" };
+
+const WEEKS = [
+  { label:"S1", type:"normal", pct:0.80,  sets:5, reps:3, note:"Entrada al bloque — técnica y activación" },
+  { label:"S2", type:"normal", pct:0.825, sets:5, reps:3, note:"Incremento de carga moderado" },
+  { label:"S3", type:"normal", pct:0.85,  sets:5, reps:3, note:"Zona óptima Prilepin — 5×3 @85%" },
+  { label:"S4", type:"deload", pct:0.70,  sets:3, reps:3, note:"Deload — recuperación activa" },
+  { label:"S5", type:"peak",   pct:0.875, sets:4, reps:3, note:"Pico de fuerza — intensidad sube" },
+  { label:"S6", type:"peak",   pct:0.90,  sets:4, reps:2, note:"Fuerza máxima — 4×2 @90%" },
+  { label:"S7", type:"peak",   pct:0.925, sets:3, reps:2, note:"Alta intensidad — 3×2 @92.5%" },
+  { label:"S8", type:"deload", pct:0.75,  sets:3, reps:3, note:"Deload final — test 1RM o nuevo ciclo" },
+];
+
+const DAY_DEFS = [
+  { id:"squat", title:"Día 1 — Sentadilla", lift:"squat",
+    main:"Sentadilla competitiva", variant:"Paused squat",
+    acc:[["Prensa o hack squat","3×8"],["Curl femoral / RDL","3×8"],["Core (plancha/ab wheel)","3×30s"]] },
+  { id:"dead", title:"Día 2 — Peso muerto", lift:"dead",
+    main:"Peso muerto competitivo", variant:"Deficit deadlift",
+    acc:[["Good morning","3×6"],["Remo con barra","3×8"],["Hip thrust","3×8"]] },
+  { id:"bench", title:"Día 3 — Plano", lift:"bench",
+    main:"Bench plano competitivo", variant:"Press agarre cerrado",
+    acc:[["Press inclinado mancuernas","3×8"],["Remo en polea","3×10"],["Tríceps en polea","3×10"]] },
+  { id:"ohp", title:"Día 4 — Press militar", lift:"ohp",
+    main:"Press militar competitivo", variant:"Push press",
+    acc:[["Elevaciones laterales","3×12"],["Face pull","3×12"],["Curl con barra","3×10"]] },
+];
+
+const LIFT_NAMES = { squat:"Sentadilla", dead:"Peso muerto", bench:"Plano", ohp:"Press militar" };
+
+function round25(w){ return Math.round(w*4)/4; }
+function epley1rm(weight, reps){ return weight * (1 + reps/30); }
+
+let state = { tab:"program", activeWeek:0, oneRM:{...BASE_DEFAULT}, logs:{} };
+
+// ---------- persistence (localStorage — funciona standalone en el teléfono) ----------
+const LS_RM = "pl_oneRM", LS_LOGS = "pl_logs";
+function saveState(){
+  try {
+    localStorage.setItem(LS_RM, JSON.stringify(state.oneRM));
+    localStorage.setItem(LS_LOGS, JSON.stringify(state.logs));
+  } catch(e){ console.error("No se pudo guardar", e); }
+}
+function loadState(){
+  try { const rm = localStorage.getItem(LS_RM); if(rm) state.oneRM = {...BASE_DEFAULT, ...JSON.parse(rm)}; } catch(e){}
+  try { const lg = localStorage.getItem(LS_LOGS); if(lg) state.logs = JSON.parse(lg); } catch(e){}
+}
+
+function dayComplete(wi, lid){ return !!state.logs["w"+wi+"-"+lid]; }
+function weekComplete(wi){ return DAY_DEFS.every(d => dayComplete(wi, d.id)); }
+
+function logLift(wi, lid, weight, reps){
+  const w = WEEKS[wi];
+  state.logs["w"+wi+"-"+lid] = { weight, reps, sets: lid==="dead"?Math.max(w.sets-1,3):w.sets, date:new Date().toISOString() };
+  const est = epley1rm(weight, reps);
+  if (est > state.oneRM[lid]) state.oneRM[lid] = round25(est);
+  saveState(); render();
+}
+
+function render(){
+  document.getElementById("root").innerHTML = `
+    <div class="app-title-row">
+      <div class="app-kicker">Powerlifting · 4 días · Prilepin · 8 semanas</div>
+      <div class="app-title">Strength Tracker</div>
+      <div class="app-sub">Sentadilla → Peso muerto → Plano → Press militar</div>
+    </div>
+    <div class="nav">
+      <button class="${state.tab==='program'?'active':''}" onclick="setTab('program')">Programa</button>
+      <button class="${state.tab==='progress'?'active':''}" onclick="setTab('progress')">Progresión</button>
+    </div>
+    ${state.tab==='program'?renderProgram():renderProgress()}
+    <div class="reset-row"><button class="reset-btn" onclick="resetAll()">Reiniciar todos los datos</button></div>
+  `;
+}
+
+function renderCards(){
+  return `<div class="cards4">${Object.keys(LIFT_NAMES).map(k=>`
+    <div class="stat">
+      <div class="stat-label">${LIFT_NAMES[k]}</div>
+      <div class="stat-val"><input type="number" inputmode="decimal" value="${state.oneRM[k]}" onchange="updateRM('${k}',this.value)" /></div>
+      <div class="stat-sub">1RM kg · reg ${REG[k]}</div>
+    </div>`).join("")}</div>`;
+}
+
+function renderProgram(){
+  const w = WEEKS[state.activeWeek];
+  let html = renderCards();
+  html += `<div class="week-tabs">${WEEKS.map((wk,i)=>`
+    <button class="wtab ${wk.type} ${i===state.activeWeek?'active':''}" onclick="setWeek(${i})">
+      ${wk.label}${weekComplete(i)?'<span class="done-dot"></span>':''}</button>`).join("")}</div>`;
+  html += `<div class="week-note">
+    <span class="badge ${w.type}">${w.type==='deload'?'Deload':w.type==='peak'?'Pico de fuerza':'Acumulación'}</span>
+    <span class="txt">${w.note}</span></div>`;
+  html += `<div class="days">${DAY_DEFS.map(d=>renderDay(d,state.activeWeek)).join("")}</div>`;
+
+  const totalDays = WEEKS.length*DAY_DEFS.length;
+  let done=0; WEEKS.forEach((_,wi)=>DAY_DEFS.forEach(d=>{ if(dayComplete(wi,d.id)) done++; }));
+  const pct = Math.round(done/totalDays*100);
+  html += `<div class="prog-wrap">
+    <div class="prog-label"><span>Progreso del bloque · ${done}/${totalDays} sesiones</span><span>${pct}%</span></div>
+    <div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div></div>`;
+  return html;
+}
+
+function renderDay(d, wi){
+  const w = WEEKS[wi];
+  const pct = w.pct, varPct = Math.max(pct-0.125,0.65);
+  const isDead = d.lift==="dead";
+  const sets = isDead?Math.max(w.sets-1,3):w.sets;
+  const reps = isDead?Math.max(w.reps-1,1):w.reps;
+  const targetW = round25(state.oneRM[d.lift]*pct);
+  const varW = round25(state.oneRM[d.lift]*varPct);
+  const logged = state.logs["w"+wi+"-"+d.lift];
+  const complete = !!logged;
+
+  let html = `<div class="day ${complete?'complete':''}">
+    <div class="day-head"><span class="day-title">${d.title}</span>${complete?'<span class="day-check">✓</span>':''}</div>`;
+  html += `<div class="ex">
+    <div class="ex-top"><span class="ex-name main">${d.main}</span><span class="tag main">principal</span></div>
+    <div class="ex-bot"><span class="ex-scheme">${sets}×${reps}</span><span class="ex-target">${targetW} kg<span class="pct">${Math.round(pct*100)}%</span></span></div>
+    <div class="log-main"><div class="log-row">
+      <div class="log-field"><label>Peso real</label><input type="number" inputmode="decimal" id="w-${wi}-${d.lift}" placeholder="${targetW}" value="${logged?logged.weight:''}" /></div>
+      <div class="log-field"><label>Reps</label><input type="number" inputmode="numeric" id="r-${wi}-${d.lift}" placeholder="${reps}" value="${logged?logged.reps:''}" /></div>
+      <button class="log-btn ${complete?'done':''}" onclick="submitLog(${wi},'${d.lift}')">${complete?'Editar':'Registrar'}</button>
+    </div>${logged?renderLoggedInfo(logged,targetW):''}</div></div>`;
+  html += `<div class="ex">
+    <div class="ex-top"><span class="ex-name">${d.variant}</span><span class="tag var">variante</span></div>
+    <div class="ex-bot"><span class="ex-scheme">3×${reps}</span><span class="ex-target">${varW} kg<span class="pct">${Math.round(varPct*100)}%</span></span></div></div>`;
+  d.acc.forEach(a=>{ html += `<div class="ex">
+    <div class="ex-top"><span class="ex-name">${a[0]}</span><span class="tag acc">asistencia</span></div>
+    <div class="ex-bot"><span class="ex-scheme">${a[1]}</span><span class="ex-target" style="color:#4b5563">—</span></div></div>`; });
+  html += `</div>`;
+  return html;
+}
+
+function renderLoggedInfo(logged, targetW){
+  const diff = logged.weight-targetW;
+  const diffTxt = diff===0?"en objetivo":(diff>0?`+${diff}kg sobre objetivo`:`${diff}kg bajo objetivo`);
+  const date = new Date(logged.date).toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+  return `<div class="logged-info">${logged.weight}kg × ${logged.reps} · ${logged.sets} series <span class="diff">— ${diffTxt} · ${date}</span></div>`;
+}
+
+function renderProgress(){
+  let html = renderCards();
+  let anyData=false;
+  ["squat","dead","bench","ohp"].forEach(lift=>{
+    const points=[];
+    WEEKS.forEach((w,wi)=>{ const lg=state.logs["w"+wi+"-"+lift]; if(lg){ points.push({wk:w.label,e1rm:round25(epley1rm(lg.weight,lg.reps)),weight:lg.weight,reps:lg.reps}); anyData=true; } });
+    const startRM=BASE_DEFAULT[lift], curRM=state.oneRM[lift], gain=round25(curRM-startRM);
+    html += `<div class="hist-lift"><div class="hist-head">
+      <span class="hist-name">${LIFT_NAMES[lift]}</span>
+      <span class="hist-stat">Inicio <b style="color:#9ca3af">${startRM}kg</b> → Actual <b>${curRM}kg</b> ${gain>0?`(+${gain}kg)`:''}</span></div>`;
+    if(points.length===0){ html += `<div class="empty">Todavía no registraste sesiones de este levantamiento.</div>`; }
+    else {
+      const maxV=Math.max(...points.map(p=>p.e1rm),curRM), minV=Math.min(...points.map(p=>p.e1rm))*0.92;
+      html += `<div class="chart">${points.map(p=>{
+        const h=Math.max(((p.e1rm-minV)/(maxV-minV))*100,4);
+        return `<div class="bar-col"><span class="bar-val">${p.e1rm}</span><div class="bar" style="height:${h}%" title="${p.weight}kg × ${p.reps}"></div><span class="bar-wk">${p.wk}</span></div>`;
+      }).join("")}</div>`;
+    }
+    html += `</div>`;
+  });
+  if(!anyData){ html += `<div class="empty" style="margin-top:10px;">Registrá tus primeras sesiones en la pestaña <b style="color:#9ca3af">Programa</b> para ver tu progresión.<br/>Las barras muestran tu 1RM estimado (Epley) semana a semana.</div>`; }
+  return html;
+}
+
+window.setTab=t=>{state.tab=t;render();};
+window.setWeek=i=>{state.activeWeek=i;render();};
+window.updateRM=(k,v)=>{const n=parseFloat(v);if(!isNaN(n)&&n>0){state.oneRM[k]=n;saveState();render();}};
+window.submitLog=(wi,lid)=>{
+  const wEl=document.getElementById("w-"+wi+"-"+lid), rEl=document.getElementById("r-"+wi+"-"+lid);
+  const weight=parseFloat(wEl.value), reps=parseInt(rEl.value);
+  if(isNaN(weight)||weight<=0||isNaN(reps)||reps<=0){ wEl.style.borderColor="#ef4444"; rEl.style.borderColor="#ef4444"; return; }
+  logLift(wi,lid,weight,reps);
+};
+window.resetAll=()=>{
+  if(!confirm("¿Borrar todos los registros y volver a los 1RM iniciales?")) return;
+  state.oneRM={...BASE_DEFAULT}; state.logs={};
+  try{ localStorage.removeItem(LS_RM); localStorage.removeItem(LS_LOGS); }catch(e){}
+  render();
+};
+
+loadState();
+render();
+</script>
+</body>
+</html>
